@@ -172,6 +172,28 @@ const openApiSpec = {
         },
         required: ["data", "meta"]
       },
+      CreateCustomerRequest: {
+        type: "object",
+        properties: {
+          firstName: { type: "string", example: "Ana" },
+          lastName: { type: "string", example: "Torres" },
+          email: { type: "string", example: "ana.torres@mail.com" },
+          phone: { type: "string", example: "04141112233" },
+          identification: { type: "string", example: "V20111222" },
+          city: { type: "string", example: "Caracas" },
+          nationality: { type: "string", example: "VE" },
+          segment: { type: "string", example: "new" },
+          status: { type: "string", example: "active" }
+        },
+        required: ["firstName", "lastName", "email"]
+      },
+      CustomerResponse: {
+        type: "object",
+        properties: {
+          data: { $ref: "#/components/schemas/Customer" }
+        },
+        required: ["data"]
+      },
       Employee: {
         type: "object",
         properties: {
@@ -411,6 +433,94 @@ const openApiSpec = {
           },
           401: {
             description: "No autorizado",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      post: {
+        tags: ["Users"],
+        summary: "Crear cliente",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CreateCustomerRequest" }
+            }
+          }
+        },
+        responses: {
+          201: {
+            description: "Cliente creado",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/CustomerResponse" }
+              }
+            }
+          },
+          400: {
+            description: "Faltan campos requeridos",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          401: {
+            description: "No autorizado",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          409: {
+            description: "El email ya existe",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{id}": {
+      get: {
+        tags: ["Users"],
+        summary: "Obtener cliente por id",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string", example: "cust_4" }
+          }
+        ],
+        responses: {
+          200: {
+            description: "Cliente encontrado",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/CustomerResponse" }
+              }
+            }
+          },
+          401: {
+            description: "No autorizado",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          404: {
+            description: "Cliente no encontrado",
             content: {
               "application/json": {
                 schema: { $ref: "#/components/schemas/ErrorResponse" }

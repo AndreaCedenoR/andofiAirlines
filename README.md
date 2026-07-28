@@ -134,7 +134,29 @@ Respuesta devuelta por esta API:
 
 El frontend que acepta A/B/C seguira funcionando porque esta API usa la estructura C (`data`).
 
-### 4) Empleados (MASTER_API)
+### 4) Crear cliente
+
+`POST /users`
+
+Body:
+
+```json
+{
+  "firstName": "Ana",
+  "lastName": "Torres",
+  "email": "ana.torres@mail.com"
+}
+```
+
+Respuestas: `201` con `{ "data": { ...cliente creado } }`, `400` si faltan `firstName`/`lastName`/`email`, `409` si el email ya existe.
+
+### 5) Obtener cliente por id
+
+`GET /users/:id`
+
+Respuestas: `200` con `{ "data": { ...cliente } }`, `404` si no existe.
+
+### 6) Empleados (MASTER_API)
 
 `GET /users`
 

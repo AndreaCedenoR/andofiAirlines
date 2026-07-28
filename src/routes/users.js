@@ -64,6 +64,70 @@ router.get("/", (req, res) => {
   });
 });
 
+router.post("/", (req, res) => {
+  const { firstName, lastName, email, phone, identification, city, nationality, segment, status } = req.body || {};
+
+  if (!firstName || !lastName || !email) {
+    return res.status(400).json({
+      error: "ValidationError",
+      message: "firstName, lastName and email are required"
+    });
+  }
+
+  const normalizedEmail = normalize(email);
+  const emailTaken = CUSTOMERS.some((customer) => normalize(customer.email) === normalizedEmail);
+
+  if (emailTaken) {
+    return res.status(409).json({
+      error: "Conflict",
+      message: "A customer with this email already exists"
+    });
+  }
+
+  const newCustomer = {
+    id: `cust_${CUSTOMERS.length + 1}`,
+    firstName,
+    lastName,
+    email,
+    phone: phone || "",
+    identification: identification || "",
+    city: city || "",
+    nationality: nationality || "",
+    isAviorPlus: false,
+    aviorPlusNumber: "",
+    sex: "",
+    birthDate: "",
+    preferredRoute: "",
+    preferredPaymentMethod: "",
+    purchaseChannel: "",
+    totalPurchasesUSD: 0,
+    lastContactDate: "",
+    lastFlightDate: "",
+    lastFlightNumber: "",
+    status: status || "active",
+    segment: segment || "new",
+    createdAt: new Date().toISOString(),
+    tags: []
+  };
+
+  CUSTOMERS.push(newCustomer);
+
+  return res.status(201).json({ data: newCustomer });
+});
+
+router.get("/:id", (req, res) => {
+  const customer = CUSTOMERS.find((item) => item.id === req.params.id);
+
+  if (!customer) {
+    return res.status(404).json({
+      error: "NotFound",
+      message: `Customer not found: ${req.params.id}`
+    });
+  }
+
+  return res.json({ data: customer });
+});
+
 module.exports = {
   usersRouter: router
 };

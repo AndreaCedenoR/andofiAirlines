@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Las Lindas API",
-    "description": "Coleccion para probar login, vuelos, facturas y usuarios protegidos por JWT.",
+    "description": "Coleccion para probar login, vuelos, facturas y usuarios protegidos por JWT. Incluye validacion de contrato, encadenamiento de requests (crear cliente -> obtener por id), script de pre-solicitud con email dinamico y validacion de tiempo de respuesta.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -10,13 +10,39 @@
       "item": [
         {
           "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test(\"Response time is less than 500ms\", () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test(\"Schema contains token and user fields\", () => {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"token\");",
+                  "    pm.expect(jsonData).to.have.property(\"user\");",
+                  "    [\"id\", \"email\", \"role\", \"name\"].forEach((field) => {",
+                  "        pm.expect(jsonData.user).to.have.property(field);",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test(\"Save token to environment for chaining\", () => {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.environment.set(\"token\", jsonData.token);",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -37,6 +63,27 @@
       "item": [
         {
           "name": "Health check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test(\"Response time is less than 500ms\", () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test(\"Schema contains status field\", () => {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"status\");",
+                  "    pm.expect(jsonData.status).to.eql(\"ok\");",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "url": {
@@ -54,51 +101,158 @@
       "item": [
         {
           "name": "Flights by date",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test(\"Response time is less than 500ms\", () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test(\"Schema: data is an array with required flight fields\", () => {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"data\");",
+                  "    pm.expect(jsonData.data).to.be.an(\"array\");",
+                  "    pm.expect(jsonData.data.length).to.be.above(0);",
+                  "    const flight = jsonData.data[0];",
+                  "    [\"FlightNumber\", \"DepartureAirport\", \"ArrivalAirport\", \"DepartureDateTime\", \"ArrivalDateTime\"].forEach((field) => {",
+                  "        pm.expect(flight).to.have.property(field);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
             "url": {
               "raw": "{{baseUrl}}/invoices/flights?date=2026-03-28",
               "host": ["{{baseUrl}}"],
               "path": ["invoices", "flights"],
-              "query": [
-                {
-                  "key": "date",
-                  "value": "2026-03-28"
-                }
-              ]
+              "query": [{ "key": "date", "value": "2026-03-28" }]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Flights by date - missing date (negative)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", () => pm.response.to.have.status(400));",
+                  "",
+                  "pm.test(\"Response time is less than 500ms\", () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test(\"Schema contains error and message\", () => {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"error\");",
+                  "    pm.expect(jsonData).to.have.property(\"message\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/flights",
+              "host": ["{{baseUrl}}"],
+              "path": ["invoices", "flights"]
             }
           },
           "response": []
         },
         {
           "name": "Invoices by flight and date",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test(\"Response time is less than 500ms\", () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test(\"Schema: docs is an array with required invoice fields\", () => {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"docs\");",
+                  "    pm.expect(jsonData.docs).to.be.an(\"array\");",
+                  "    const invoice = jsonData.docs[0];",
+                  "    [\"_id\", \"pnr\", \"email\", \"phone\", \"passengers\"].forEach((field) => {",
+                  "        pm.expect(invoice).to.have.property(field);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
             "url": {
               "raw": "{{baseUrl}}/invoices?flightNumber=1068&date=2026-03-28",
               "host": ["{{baseUrl}}"],
               "path": ["invoices"],
               "query": [
-                {
-                  "key": "flightNumber",
-                  "value": "1068"
-                },
-                {
-                  "key": "date",
-                  "value": "2026-03-28"
-                }
+                { "key": "flightNumber", "value": "1068" },
+                { "key": "date", "value": "2026-03-28" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Invoices without token (negative)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 401\", () => pm.response.to.have.status(401));",
+                  "",
+                  "pm.test(\"Response time is less than 500ms\", () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test(\"Schema contains error and message\", () => {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"error\");",
+                  "    pm.expect(jsonData).to.have.property(\"message\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/invoices?flightNumber=1068&date=2026-03-28",
+              "host": ["{{baseUrl}}"],
+              "path": ["invoices"],
+              "query": [
+                { "key": "flightNumber", "value": "1068" },
+                { "key": "date", "value": "2026-03-28" }
               ]
             }
           },
@@ -111,13 +265,35 @@
       "item": [
         {
           "name": "Employees - MASTER_API",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test(\"Response time is less than 500ms\", () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test(\"Schema: array of employees with required fields\", () => {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an(\"array\");",
+                  "    pm.expect(jsonData.length).to.be.above(0);",
+                  "    const employee = jsonData[0];",
+                  "    [\"_id\", \"email\", \"name\", \"lastName\", \"status\", \"role\"].forEach((field) => {",
+                  "        pm.expect(employee).to.have.property(field);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
             "url": {
               "raw": "{{baseUrl}}/users",
@@ -129,13 +305,35 @@
         },
         {
           "name": "Customers paginated",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test(\"Response time is less than 500ms\", () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test(\"Schema: data + meta with required fields\", () => {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"data\");",
+                  "    pm.expect(jsonData).to.have.property(\"meta\");",
+                  "    pm.expect(jsonData.data).to.be.an(\"array\");",
+                  "    [\"page\", \"limit\", \"total\", \"totalPages\"].forEach((field) => {",
+                  "        pm.expect(jsonData.meta).to.have.property(field);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
+              { "key": "Authorization", "value": "Bearer {{token}}" }
             ],
             "url": {
               "raw": "{{baseUrl}}/users?page=1&limit=10&search=&segment=&status=",
@@ -151,18 +349,258 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Create customer (chaining 1/2)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Genera un email dinamico para que el POST no falle por email duplicado",
+                  "const randomSuffix = Math.floor(Math.random() * 1000000);",
+                  "const dynamicEmail = `qa.candidate.${randomSuffix}@mail.com`;",
+                  "pm.environment.set(\"dynamicEmail\", dynamicEmail);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 201\", () => pm.response.to.have.status(201));",
+                  "",
+                  "pm.test(\"Response time is less than 500ms\", () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test(\"Schema: created customer has required fields\", () => {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"data\");",
+                  "    [\"id\", \"firstName\", \"lastName\", \"email\"].forEach((field) => {",
+                  "        pm.expect(jsonData.data).to.have.property(field);",
+                  "    });",
+                  "    pm.expect(jsonData.data.email).to.eql(pm.environment.get(\"dynamicEmail\"));",
+                  "});",
+                  "",
+                  "pm.test(\"Save customerId to environment for chaining\", () => {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.environment.set(\"customerId\", jsonData.data.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"QA\",\n  \"lastName\": \"Candidate\",\n  \"email\": \"{{dynamicEmail}}\",\n  \"phone\": \"04140000000\",\n  \"identification\": \"V00000000\",\n  \"city\": \"Caracas\",\n  \"nationality\": \"VE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get customer by id (chaining 2/2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test(\"Response time is less than 500ms\", () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test(\"The customer created previously exists and matches\", () => {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"data\");",
+                  "    pm.expect(jsonData.data.id).to.eql(pm.environment.get(\"customerId\"));",
+                  "    pm.expect(jsonData.data.email).to.eql(pm.environment.get(\"dynamicEmail\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{customerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{{customerId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create customer - duplicate email (negative)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 409\", () => pm.response.to.have.status(409));",
+                  "",
+                  "pm.test(\"Response time is less than 500ms\", () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test(\"Schema contains error and message\", () => {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"error\");",
+                  "    pm.expect(jsonData).to.have.property(\"message\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"QA\",\n  \"lastName\": \"Duplicado\",\n  \"email\": \"{{dynamicEmail}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            }
+          },
+          "response": [],
+          "description": "Reutiliza a proposito el {{dynamicEmail}} generado en 'Create customer (chaining 1/2)' para validar que la API rechaza emails duplicados con 409."
+        },
+        {
+          "name": "Create customer - missing fields (negative)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 400\", () => pm.response.to.have.status(400));",
+                  "",
+                  "pm.test(\"Response time is less than 500ms\", () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test(\"Schema contains error and message\", () => {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"error\");",
+                  "    pm.expect(jsonData).to.have.property(\"message\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Incompleto\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get customer - not found (negative)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", () => pm.response.to.have.status(404));",
+                  "",
+                  "pm.test(\"Response time is less than 500ms\", () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test(\"Schema contains error and message\", () => {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property(\"error\");",
+                  "    pm.expect(jsonData).to.have.property(\"message\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/cust_does_not_exist",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "cust_does_not_exist"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get users without token (negative)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 401\", () => pm.response.to.have.status(401));",
+                  "",
+                  "pm.test(\"Response time is less than 500ms\", () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            }
+          },
+          "response": []
         }
       ]
     }
   ],
   "variable": [
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:3000"
-    },
-    {
-      "key": "token",
-      "value": ""
-    }
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "token", "value": "" },
+    { "key": "dynamicEmail", "value": "" },
+    { "key": "customerId", "value": "" }
   ]
 }
