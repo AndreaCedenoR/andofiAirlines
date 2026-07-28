@@ -9,6 +9,10 @@ const { openApiSpec } = require("./openapi");
 const app = express();
 const PORT = Number.parseInt(process.env.PORT || "3000", 10);
 
+// Vercel actua como proxy: sin esto, req.protocol siempre reporta "http"
+// aunque el cliente haya entrado por https (causa mixed-content en /docs).
+app.set("trust proxy", true);
+
 app.use(cors());
 app.use(express.json());
 
