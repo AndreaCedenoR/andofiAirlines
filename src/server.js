@@ -7,7 +7,7 @@ const { authRouter } = require("./routes/auth");
 const { invoicesRouter } = require("./routes/invoices");
 const { usersRouter } = require("./routes/users");
 const { openApiSpec } = require("./openapi");
-const { getDb } = require("./db");
+const { getSql } = require("./db");
 
 const app = express();
 const PORT = Number.parseInt(process.env.PORT || "3000", 10);
@@ -56,7 +56,7 @@ app.get("/docs", (_req, res) => {
 });
 
 // Vercel invoca este endpoint con Authorization: Bearer <CRON_SECRET> (si esta configurado).
-// Sirve para que el cron mantenga vivo el cluster de Mongo (free tier se auto-pausa por inactividad).
+// Sirve para que el cron mantenga vivo el compute de Neon (free tier se auto-suspende por inactividad).
 app.get("/cron/keep-alive", async (req, res) => {
   if (process.env.CRON_SECRET) {
     const expected = `Bearer ${process.env.CRON_SECRET}`;
@@ -69,8 +69,8 @@ app.get("/cron/keep-alive", async (req, res) => {
   }
 
   try {
-    const db = await getDb();
-    await db.command({ ping: 1 });
+    const sql = getSql();
+    await sql`SELECT 1`;
     return res.json({ status: "ok", pingedAt: new Date().toISOString() });
   } catch (error) {
     return res.status(500).json({

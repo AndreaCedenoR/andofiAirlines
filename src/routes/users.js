@@ -1,6 +1,6 @@
 const express = require("express");
 const { randomUUID } = require("crypto");
-const { getDb } = require("../db");
+const { getSql } = require("../db");
 const { EMPLOYEES } = require("../data/employees");
 const { SEED_CUSTOMERS } = require("../data/customers");
 
@@ -10,24 +10,89 @@ function normalize(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-function escapeRegex(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function hasCustomerQuery(params) {
   return ["page", "limit", "search", "segment", "status"].some((key) => Object.prototype.hasOwnProperty.call(params, key));
 }
 
-async function getCustomersCollection() {
-  const db = await getDb();
-  const collection = db.collection("customers");
+function rowToCustomer(row) {
+  return {
+    id: row.id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    email: row.email,
+    phone: row.phone,
+    identification: row.identification,
+    city: row.city,
+    nationality: row.nationality,
+    isLasLindasPlus: row.is_las_lindas_plus,
+    lasLindasPlusNumber: row.las_lindas_plus_number,
+    sex: row.sex,
+    birthDate: row.birth_date,
+    preferredRoute: row.preferred_route,
+    preferredPaymentMethod: row.preferred_payment_method,
+    purchaseChannel: row.purchase_channel,
+    totalPurchasesUSD: Number(row.total_purchases_usd),
+    lastContactDate: row.last_contact_date,
+    lastFlightDate: row.last_flight_date,
+    lastFlightNumber: row.last_flight_number,
+    status: row.status,
+    segment: row.segment,
+    createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+    tags: row.tags || []
+  };
+}
 
-  const count = await collection.countDocuments();
+async function ensureCustomersTable(sql) {
+  await sql`
+    CREATE TABLE IF NOT EXISTS customers (
+      id TEXT PRIMARY KEY,
+      first_name TEXT NOT NULL,
+      last_name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      phone TEXT DEFAULT '',
+      identification TEXT DEFAULT '',
+      city TEXT DEFAULT '',
+      nationality TEXT DEFAULT '',
+      is_las_lindas_plus BOOLEAN DEFAULT false,
+      las_lindas_plus_number TEXT DEFAULT '',
+      sex TEXT DEFAULT '',
+      birth_date TEXT DEFAULT '',
+      preferred_route TEXT DEFAULT '',
+      preferred_payment_method TEXT DEFAULT '',
+      purchase_channel TEXT DEFAULT '',
+      total_purchases_usd NUMERIC DEFAULT 0,
+      last_contact_date TEXT DEFAULT '',
+      last_flight_date TEXT DEFAULT '',
+      last_flight_number TEXT DEFAULT '',
+      status TEXT DEFAULT 'active',
+      segment TEXT DEFAULT 'new',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      tags TEXT[] DEFAULT '{}'
+    )
+  `;
+
+  const [{ count }] = await sql`SELECT COUNT(*)::int AS count FROM customers`;
+
   if (count === 0) {
-    await collection.insertMany(SEED_CUSTOMERS.map((customer) => ({ ...customer })));
+    for (const customer of SEED_CUSTOMERS) {
+      await sql`
+        INSERT INTO customers (
+          id, first_name, last_name, email, phone, identification, city, nationality,
+          is_las_lindas_plus, las_lindas_plus_number, sex, birth_date, preferred_route,
+          preferred_payment_method, purchase_channel, total_purchases_usd, last_contact_date,
+          last_flight_date, last_flight_number, status, segment, created_at, tags
+        ) VALUES (
+          ${customer.id}, ${customer.firstName}, ${customer.lastName}, ${customer.email},
+          ${customer.phone}, ${customer.identification}, ${customer.city}, ${customer.nationality},
+          ${customer.isLasLindasPlus}, ${customer.lasLindasPlusNumber}, ${customer.sex}, ${customer.birthDate},
+          ${customer.preferredRoute}, ${customer.preferredPaymentMethod}, ${customer.purchaseChannel},
+          ${customer.totalPurchasesUSD}, ${customer.lastContactDate}, ${customer.lastFlightDate},
+          ${customer.lastFlightNumber}, ${customer.status}, ${customer.segment}, ${customer.createdAt}, ${customer.tags}
+        )
+        ON CONFLICT (id) DO NOTHING
+      `;
+    }
   }
-
-  return collection;
 }
 
 router.get("/", async (req, res, next) => {
@@ -41,45 +106,51 @@ router.get("/", async (req, res, next) => {
     const search = normalize(req.query.search);
     const segment = normalize(req.query.segment);
     const status = normalize(req.query.status);
+    const offset = (page - 1) * limit;
+    const searchPattern = `%${search}%`;
 
-    const filter = {};
+    const sql = getSql();
+    await ensureCustomersTable(sql);
 
-    if (search) {
-      const pattern = new RegExp(escapeRegex(search), "i");
-      filter.$or = [
-        { firstName: pattern },
-        { lastName: pattern },
-        { email: pattern },
-        { identification: pattern },
-        { phone: pattern },
-        { lastFlightNumber: pattern }
-      ];
-    }
+    const rows = await sql`
+      SELECT * FROM customers
+      WHERE (
+        ${search} = '' OR
+        first_name ILIKE ${searchPattern} OR
+        last_name ILIKE ${searchPattern} OR
+        email ILIKE ${searchPattern} OR
+        identification ILIKE ${searchPattern} OR
+        phone ILIKE ${searchPattern} OR
+        last_flight_number ILIKE ${searchPattern}
+      )
+      AND (${segment} = '' OR segment ILIKE ${segment})
+      AND (${status} = '' OR status ILIKE ${status})
+      ORDER BY created_at ASC
+      LIMIT ${limit} OFFSET ${offset}
+    `;
 
-    if (segment) {
-      filter.segment = new RegExp(`^${escapeRegex(segment)}$`, "i");
-    }
-
-    if (status) {
-      filter.status = new RegExp(`^${escapeRegex(status)}$`, "i");
-    }
-
-    const collection = await getCustomersCollection();
-    const total = await collection.countDocuments(filter);
-    const start = (page - 1) * limit;
-    const paged = await collection
-      .find(filter, { projection: { _id: 0 } })
-      .skip(start)
-      .limit(limit)
-      .toArray();
+    const [{ count }] = await sql`
+      SELECT COUNT(*)::int AS count FROM customers
+      WHERE (
+        ${search} = '' OR
+        first_name ILIKE ${searchPattern} OR
+        last_name ILIKE ${searchPattern} OR
+        email ILIKE ${searchPattern} OR
+        identification ILIKE ${searchPattern} OR
+        phone ILIKE ${searchPattern} OR
+        last_flight_number ILIKE ${searchPattern}
+      )
+      AND (${segment} = '' OR segment ILIKE ${segment})
+      AND (${status} = '' OR status ILIKE ${status})
+    `;
 
     return res.json({
-      data: paged,
+      data: rows.map(rowToCustomer),
       meta: {
         page,
         limit,
-        total,
-        totalPages: Math.max(Math.ceil(total / limit), 1)
+        total: count,
+        totalPages: Math.max(Math.ceil(count / limit), 1)
       }
     });
   } catch (error) {
@@ -98,13 +169,13 @@ router.post("/", async (req, res, next) => {
       });
     }
 
-    const collection = await getCustomersCollection();
-    const normalizedEmail = normalize(email);
-    const emailTaken = await collection.findOne({
-      email: new RegExp(`^${escapeRegex(normalizedEmail)}$`, "i")
-    });
+    const sql = getSql();
+    await ensureCustomersTable(sql);
 
-    if (emailTaken) {
+    const normalizedEmail = normalize(email);
+    const existing = await sql`SELECT 1 FROM customers WHERE email ILIKE ${normalizedEmail} LIMIT 1`;
+
+    if (existing.length > 0) {
       return res.status(409).json({
         error: "Conflict",
         message: "A customer with this email already exists"
@@ -137,7 +208,21 @@ router.post("/", async (req, res, next) => {
       tags: []
     };
 
-    await collection.insertOne({ ...newCustomer });
+    await sql`
+      INSERT INTO customers (
+        id, first_name, last_name, email, phone, identification, city, nationality,
+        is_las_lindas_plus, las_lindas_plus_number, sex, birth_date, preferred_route,
+        preferred_payment_method, purchase_channel, total_purchases_usd, last_contact_date,
+        last_flight_date, last_flight_number, status, segment, created_at, tags
+      ) VALUES (
+        ${newCustomer.id}, ${newCustomer.firstName}, ${newCustomer.lastName}, ${newCustomer.email},
+        ${newCustomer.phone}, ${newCustomer.identification}, ${newCustomer.city}, ${newCustomer.nationality},
+        ${newCustomer.isLasLindasPlus}, ${newCustomer.lasLindasPlusNumber}, ${newCustomer.sex}, ${newCustomer.birthDate},
+        ${newCustomer.preferredRoute}, ${newCustomer.preferredPaymentMethod}, ${newCustomer.purchaseChannel},
+        ${newCustomer.totalPurchasesUSD}, ${newCustomer.lastContactDate}, ${newCustomer.lastFlightDate},
+        ${newCustomer.lastFlightNumber}, ${newCustomer.status}, ${newCustomer.segment}, ${newCustomer.createdAt}, ${newCustomer.tags}
+      )
+    `;
 
     return res.status(201).json({ data: newCustomer });
   } catch (error) {
@@ -147,17 +232,19 @@ router.post("/", async (req, res, next) => {
 
 router.get("/:id", async (req, res, next) => {
   try {
-    const collection = await getCustomersCollection();
-    const customer = await collection.findOne({ id: req.params.id }, { projection: { _id: 0 } });
+    const sql = getSql();
+    await ensureCustomersTable(sql);
 
-    if (!customer) {
+    const rows = await sql`SELECT * FROM customers WHERE id = ${req.params.id} LIMIT 1`;
+
+    if (rows.length === 0) {
       return res.status(404).json({
         error: "NotFound",
         message: `Customer not found: ${req.params.id}`
       });
     }
 
-    return res.json({ data: customer });
+    return res.json({ data: rowToCustomer(rows[0]) });
   } catch (error) {
     return next(error);
   }

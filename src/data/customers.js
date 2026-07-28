@@ -1,4 +1,4 @@
-// Datos semilla: se insertan en MongoDB una sola vez si la coleccion esta vacia.
+// Datos semilla: se insertan en la tabla customers una sola vez si esta vacia.
 const SEED_CUSTOMERS = [
   {
     id: "cust_1",

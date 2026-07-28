@@ -5,7 +5,7 @@ API REST con autenticacion JWT y rutas protegidas.
 ## Requisitos
 
 - Node.js 18+
-- Un cluster de MongoDB (Atlas free tier funciona bien) para persistir los clientes creados por `POST /users`
+- Una base de datos Postgres (Neon / Vercel Postgres free tier funciona bien) para persistir los clientes creados por `POST /users`
 
 ## Instalacion
 
@@ -16,14 +16,14 @@ npm install
 Copia `.env.example` a `.env` y completa:
 
 ```
-MONGODB_URI=mongodb+srv://<usuario>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority
-MONGODB_DB_NAME=laslindas
+DATABASE_URL=postgresql://<usuario>:<password>@<host>/<db>?sslmode=require
 CRON_SECRET=
 ```
 
-- `MONGODB_URI` (obligatoria): sin ella, todo lo relacionado a clientes (`POST /users`, `GET /users/:id`, `GET /users` con query params) responde `500`. El resto de la API (login, vuelos, facturas, empleados) no depende de Mongo.
-- `MONGODB_DB_NAME` (opcional, default `laslindas`).
+- `DATABASE_URL` (obligatoria, tambien acepta `POSTGRES_URL`): sin ella, todo lo relacionado a clientes (`POST /users`, `GET /users/:id`, `GET /users` con query params) responde `500`. El resto de la API (login, vuelos, facturas, empleados) no depende de la base de datos. La tabla `customers` se crea sola en el primer request (`CREATE TABLE IF NOT EXISTS`) y se llena con datos semilla si esta vacia.
 - `CRON_SECRET` (opcional): si se define, `/cron/keep-alive` solo acepta requests con `Authorization: Bearer <CRON_SECRET>`. Vercel manda ese header automaticamente en cada ejecucion de cron si esta variable esta configurada en el proyecto.
+
+Se usa el driver `@neondatabase/serverless`, que consulta por HTTP en vez de mantener un socket TCP/TLS persistente — pensado para entornos serverless como Vercel.
 
 ## Ejecucion
 
@@ -200,7 +200,7 @@ Sin query params, devuelve arreglo de empleados:
 
 `GET /cron/keep-alive` (sin auth JWT, protegido opcionalmente por `CRON_SECRET`)
 
-Hace un `ping` a MongoDB para evitar que el cluster free tier se auto-pause por inactividad. Configurado en `vercel.json` para correr 2 veces al dia (7:00am y 4:00pm hora de Venezuela, UTC-4):
+Hace un `SELECT 1` a Postgres para evitar que el compute de Neon free tier se auto-suspenda por inactividad. Configurado en `vercel.json` para correr 2 veces al dia (7:00am y 4:00pm hora de Venezuela, UTC-4):
 
 ```json
 {

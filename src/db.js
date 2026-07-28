@@ -1,61 +1,25 @@
-const { MongoClient } = require("mongodb");
+const { neon } = require("@neondatabase/serverless");
 
-const DB_NAME = process.env.MONGODB_DB_NAME || "laslindas";
+let sqlClient = null;
 
-let clientPromise = null;
+// El driver de Neon corre sobre HTTP (fetch), no mantiene un socket TCP/TLS
+// persistente entre invocaciones. Evita a proposito el tipo de bug de
+// conexion "congelada" que se sufrio con el driver nativo de MongoDB en
+// Vercel serverless.
+function getSql() {
+  const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
-function connect() {
-  const uri = process.env.MONGODB_URI;
-
-  if (!uri) {
-    throw new Error("MONGODB_URI no esta configurada");
+  if (!connectionString) {
+    throw new Error("DATABASE_URL no esta configurada");
   }
 
-  const client = new MongoClient(uri, {
-    maxPoolSize: 5,
-    minPoolSize: 0,
-    // Bajo a proposito: en serverless, Vercel "congela" la funcion entre
-    // requests y un socket viejo puede quedar invalido al despertar (bug
-    // conocido del driver, NODE-6179). Reciclar sockets idle seguido reduce
-    // la chance de reusar uno muerto.
-    maxIdleTimeMS: 10000,
-    serverSelectionTimeoutMS: 10000,
-    socketTimeoutMS: 20000,
-    // Fuerza IPv4: algunos entornos serverless tienen la ruta de salida IPv6
-    // rota/bloqueada, lo que puede manifestarse como un TLS alert generico
-    // en vez de un ECONNREFUSED limpio.
-    family: 4
-  });
-
-  // Si la conexion falla, limpia el cache: sin esto, una promesa rechazada
-  // quedaba guardada para siempre y cada request futura en esa misma
-  // instancia repetia el mismo error sin volver a intentar.
-  return client.connect().catch((error) => {
-    clientPromise = null;
-    throw error;
-  });
-}
-
-function getClient() {
-  if (!clientPromise) {
-    clientPromise = connect();
+  if (!sqlClient) {
+    sqlClient = neon(connectionString);
   }
 
-  return clientPromise;
-}
-
-async function getDb() {
-  try {
-    const client = await getClient();
-    return client.db(DB_NAME);
-  } catch (error) {
-    // Reintento unico: cubre el caso de un socket cacheado que murio
-    // mientras la funcion estaba congelada.
-    const client = await getClient();
-    return client.db(DB_NAME);
-  }
+  return sqlClient;
 }
 
 module.exports = {
-  getDb
+  getSql
 };
