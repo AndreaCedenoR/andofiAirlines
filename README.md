@@ -5,12 +5,25 @@ API REST con autenticacion JWT y rutas protegidas.
 ## Requisitos
 
 - Node.js 18+
+- Un cluster de MongoDB (Atlas free tier funciona bien) para persistir los clientes creados por `POST /users`
 
 ## Instalacion
 
 ```bash
 npm install
 ```
+
+Copia `.env.example` a `.env` y completa:
+
+```
+MONGODB_URI=mongodb+srv://<usuario>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority
+MONGODB_DB_NAME=laslindas
+CRON_SECRET=
+```
+
+- `MONGODB_URI` (obligatoria): sin ella, todo lo relacionado a clientes (`POST /users`, `GET /users/:id`, `GET /users` con query params) responde `500`. El resto de la API (login, vuelos, facturas, empleados) no depende de Mongo.
+- `MONGODB_DB_NAME` (opcional, default `laslindas`).
+- `CRON_SECRET` (opcional): si se define, `/cron/keep-alive` solo acepta requests con `Authorization: Bearer <CRON_SECRET>`. Vercel manda ese header automaticamente en cada ejecucion de cron si esta variable esta configurada en el proyecto.
 
 ## Ejecucion
 
@@ -182,3 +195,18 @@ Sin query params, devuelve arreglo de empleados:
 ## Salud de API
 
 `GET /health` (sin auth)
+
+## Cron de keep-alive
+
+`GET /cron/keep-alive` (sin auth JWT, protegido opcionalmente por `CRON_SECRET`)
+
+Hace un `ping` a MongoDB para evitar que el cluster free tier se auto-pause por inactividad. Configurado en `vercel.json` para correr 2 veces al dia (7:00am y 4:00pm hora de Venezuela, UTC-4):
+
+```json
+{
+  "crons": [
+    { "path": "/cron/keep-alive", "schedule": "0 11 * * *" },
+    { "path": "/cron/keep-alive", "schedule": "0 20 * * *" }
+  ]
+}
+```

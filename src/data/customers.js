@@ -1,4 +1,5 @@
-const CUSTOMERS = [
+// Datos semilla: se insertan en MongoDB una sola vez si la coleccion esta vacia.
+const SEED_CUSTOMERS = [
   {
     id: "cust_1",
     firstName: "Juan",
@@ -77,5 +78,5 @@ const CUSTOMERS = [
 ];
 
 module.exports = {
-  CUSTOMERS
+  SEED_CUSTOMERS
 };
