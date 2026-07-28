@@ -36,7 +36,7 @@ Documentacion interactiva:
 ## Credenciales de login
 
 - email: `api@laslindas.local`
-- password: `Avior2026!`
+- password: `LasLindas2026!`
 
 ## Flujo de uso
 
@@ -48,7 +48,7 @@ Content-Type: application/json
 
 {
   "email": "api@laslindas.local",
-  "password": "Avior2026!"
+  "password": "LasLindas2026!"
 }
 ```
 
@@ -171,7 +171,7 @@ Sin query params, devuelve arreglo de empleados:
     "lastName": "Suarez",
     "documentType": "V",
     "cedula": "12345678",
-    "tenantId": "avior-001",
+    "tenantId": "laslindas-001",
     "status": "active",
     "role": "admin",
     "createdAt": "2026-03-01T00:00:00.000Z"

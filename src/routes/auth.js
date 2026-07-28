@@ -7,7 +7,7 @@ const router = express.Router();
 const API_USER = {
   id: "api_user_1",
   email: "api@laslindas.local",
-  password: "Avior2026!",
+  password: "LasLindas2026!",
   role: "admin",
   name: "API User"
 };

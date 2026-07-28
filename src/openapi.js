@@ -38,7 +38,7 @@ const openApiSpec = {
         type: "object",
         properties: {
           email: { type: "string", example: "api@laslindas.local" },
-          password: { type: "string", example: "Avior2026!" }
+          password: { type: "string", example: "LasLindas2026!" }
         },
         required: ["email", "password"]
       },
@@ -131,8 +131,8 @@ const openApiSpec = {
           identification: { type: "string", example: "V12345678" },
           city: { type: "string", example: "Caracas" },
           nationality: { type: "string", example: "VE" },
-          isAviorPlus: { type: "boolean", example: true },
-          aviorPlusNumber: { type: "string", example: "AP-001" },
+          isLasLindasPlus: { type: "boolean", example: true },
+          lasLindasPlusNumber: { type: "string", example: "LLP-001" },
           sex: { type: "string", example: "M" },
           birthDate: { type: "string", example: "1990-01-01" },
           preferredRoute: { type: "string", example: "CCS-MIA" },
@@ -203,7 +203,7 @@ const openApiSpec = {
           lastName: { type: "string", example: "Suarez" },
           documentType: { type: "string", example: "V" },
           cedula: { type: "string", example: "12345678" },
-          tenantId: { type: "string", example: "avior-001" },
+          tenantId: { type: "string", example: "laslindas-001" },
           status: { type: "string", example: "active" },
           role: { type: "string", example: "admin" },
           createdAt: { type: "string", example: "2026-03-01T00:00:00.000Z" }

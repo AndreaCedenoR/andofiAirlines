@@ -20,7 +20,7 @@ Content-Type: application/json
 
 {
   "email": "api@laslindas.local",
-  "password": "Avior2026!"
+  "password": "LasLindas2026!"
 }
 ```
 
