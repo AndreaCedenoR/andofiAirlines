@@ -20,7 +20,11 @@ function connect() {
     // la chance de reusar uno muerto.
     maxIdleTimeMS: 10000,
     serverSelectionTimeoutMS: 10000,
-    socketTimeoutMS: 20000
+    socketTimeoutMS: 20000,
+    // Fuerza IPv4: algunos entornos serverless tienen la ruta de salida IPv6
+    // rota/bloqueada, lo que puede manifestarse como un TLS alert generico
+    // en vez de un ECONNREFUSED limpio.
+    family: 4
   });
 
   // Si la conexion falla, limpia el cache: sin esto, una promesa rechazada
