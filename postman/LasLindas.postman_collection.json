@@ -18,8 +18,9 @@
                 "exec": [
                   "pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));",
                   "",
-                  "pm.test(\"Response time is less than 500ms\", () => {",
-                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "// Umbral mas alto solo aqui: primer request de la corrida, puede pegarle a un cold start serverless",
+                  "pm.test(\"Response time is less than 1500ms (cold start tolerance)\", () => {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1500);",
                   "});",
                   "",
                   "pm.test(\"Schema contains token and user fields\", () => {",
